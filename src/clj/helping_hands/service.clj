@@ -6,6 +6,7 @@
             [ring.util.response :as ring-resp]
             [cheshire.core :as jp]))
 
+
 (defn home-page
   [request]
   (ring-resp/response 
@@ -20,9 +21,11 @@
     ;; validate token
     {"uid" "hhuser"}))
 
-;; Defines "/" and "/about" routes with their associated :get handlers.
-;; The interceptors defined after the verb map (e.g., {:get home-page}
-;; apply to / and its children (/about).
+(defn- get-service-details
+  "TODO: Get the service details from external API"
+  [sid]
+  {"sid" sid, "name" "House Cleaning"})
+
 (def common-interceptors [(body-params/body-params) http/html-body])
 
 (def auth
@@ -42,8 +45,24 @@
             :response {:status 500
                        :body (.getMessage ex-info)}))})
 
+(def data-validate
+  {:name ::validate
+   :enter
+   (fn [context]
+     (let [sid (-> context :request :form-params :sid)]
+       (if-let [service (and (not (nil? sid)) (get-service-details sid))]
+         (assoc-in context [:request :tx-data :service] service)
+         (chain/terminate
+           (assoc context
+                  :response {:status 400
+                             :body "Invalid Service ID"})))))
+   :error
+   (fn [context ex-info]
+     (assoc context
+            :response {:status 500
+                       :body (.getMessage ex-info)}))})
 ;; Tabular routes
-(def routes #{["/" :get (conj common-interceptors `auth `home-page)]})
+(def routes #{["/" :post (conj common-interceptors `auth `data-validate `home-page)]})
 
 ;; Map-based routes
 ;(def routes `{"/" {:interceptors [(body-params/body-params) http/html-body]
