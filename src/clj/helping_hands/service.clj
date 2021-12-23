@@ -2,26 +2,48 @@
   (:require [io.pedestal.http :as http]
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
-            [ring.util.response :as ring-resp]))
-
-(defn about-page
-  [request]
-  (ring-resp/response (format "Clojure %s - served from %s"
-                              (clojure-version)
-                              (route/url-for ::about-page))))
+            [io.pedestal.interceptor.chain :as chain]
+            [ring.util.response :as ring-resp]
+            [cheshire.core :as jp]))
 
 (defn home-page
   [request]
-  (ring-resp/response "Hello World!"))
+  (ring-resp/response 
+    (if-let [uid (-> request :tx-data :user (get "uid"))]
+      (jp/generate-string {:msg (str "Hello " uid "!")})
+      (jp/generate-string {:msg (str "Hello World!")}))))
+
+(defn- get-uid
+  "TODO: Integrate with Auth Service"
+  [token]
+  (when (and (string? token) (not (empty? token)))
+    ;; validate token
+    {"uid" "hhuser"}))
 
 ;; Defines "/" and "/about" routes with their associated :get handlers.
 ;; The interceptors defined after the verb map (e.g., {:get home-page}
 ;; apply to / and its children (/about).
 (def common-interceptors [(body-params/body-params) http/html-body])
 
+(def auth
+  {:name ::auth
+   :enter
+   (fn [context]
+     (let [token (-> context :request :headers (get "token"))]
+       (if-let [uid (and (not (nil? token)) (get-uid token))]
+         (assoc-in context [:request :tx-data :user] uid)
+         (chain/terminate
+           (assoc context
+                  :response {:status 401
+                             :body "Auth token not found"})))))
+   :error
+   (fn [context ex-info]
+     (assoc context
+            :response {:status 500
+                       :body (.getMessage ex-info)}))})
+
 ;; Tabular routes
-(def routes #{["/" :get (conj common-interceptors `home-page)]
-              ["/about" :get (conj common-interceptors `about-page)]})
+(def routes #{["/" :get (conj common-interceptors `auth `home-page)]})
 
 ;; Map-based routes
 ;(def routes `{"/" {:interceptors [(body-params/body-params) http/html-body]
