@@ -1,8 +1,8 @@
-(ns clj.helping-hands-consumer.core
+(ns helping-hands.consumer.core
   "Initializes Helping Hands Consumer Service"
   (:require [cheshire.core :as jp]
             [clojure.string :as s]
-            [helping-ands.consumer.peristence :as p]
+            [helping-hands.consumer.persistence :as p]
             [io.pedestal.interceptor.chain :as chain])
   (:import [java.io IOException]
            [java.util UUID]))
@@ -48,7 +48,7 @@
        ;; validate and return a context with tx-data
        ;; or terminated inteceptor char-name-string
        (prepare-valid-context context)
-       (chain/termiante
+       (chain/terminate
          (assoc context
                 :response {:status 400
                            :body "Invalid Consumer ID"}))))
@@ -110,7 +110,7 @@
                        (:email tx-data) (:geo tx-data))]
        
        (if (nil? @db)
-         (throw (IOExpection.
+         (throw (IOException.
                   (str "Upsert failed for consumer: " id)))
          (assoc context
                 :resposne {:status 200
@@ -148,7 +148,7 @@
                        :body (.getMessage ex-info)}))})
 
 (def delete-consumer
-  :name ::consumer-delete
+  {:name ::consumer-delete
   
   :enter
   (fn [context]
@@ -161,4 +161,4 @@
     (fn [context ex-info]
       (assoc context
              :response {:status 500
-                        :body (.getMesssage ex-info)})))
+                        :body (.getMesssage ex-info)}))})

@@ -1,4 +1,4 @@
-(ns clj.helping-hands-consumer.persistence
+(ns helping-hands.consumer.persistence
   "Persistence Port and Adapter for Consumer Service"
   (:require [datomic.api :as d]))
 

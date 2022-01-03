@@ -1,10 +1,50 @@
-(ns helping-hands-consumer.service
-  (:require [helping-hands-consumer.core :as core] 
+(ns helping-hands.consumer.service
+  (:require [helping-hands.consumer.core :as core] 
             [io.pedestal.http :as http]
             [io.pedestal.http.route :as route]
-            [io.pedestal.http.body-params :as body-params]))
+            [io.pedestal.http.body-params :as body-params]
+            [io.pedestal.interceptor.chain :as chain]))
 
 (def common-interceptors [(body-params/body-params) http/html-body])
+
+(defn- get-uid
+  [token]
+  (when (and (string? token) (not (empty? token)))
+    ;; validate token
+    {"uid" "hhuser"}))
+
+(def auth
+  {:name ::auth
+   
+   :enter
+   (fn [context]
+     (let [token (-> context :request :headers (get "token"))]
+       (if-let [uid (and (not (nil? token)) (get-uid token))]
+         (assoc-in context [:request :tx-data :user] uid)
+         (chain/terminate
+           (assoc context
+                  :resposne {:status 401
+                             :body "Aut token not found"})))))
+   :error
+   (fn [context ex-info]
+     (assoc context 
+            :respoen {:status 500
+                      :body (.getMessage ex-info)}))})
+
+(def gen-events
+  {:name ::events
+   
+   :enter
+   (fn [context]
+     (if (:resposne :context)
+       context
+       (assoc context :response {:status 200 :bod "SUCCESS"})))
+   
+   :error
+   (fn [context ex-info]
+     (assoc context
+            :response {:status 500
+                       :body (.getMessage ex-info)}))})
 
 ;; Tabular routes
 (def routes #{["/consumers/:id"
