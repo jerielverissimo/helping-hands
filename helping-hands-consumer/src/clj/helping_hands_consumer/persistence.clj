@@ -57,3 +57,48 @@
       (d/transact conn [[:db.fn/retractEntity eid]]))))
 
 
+(defn create-consumer-database
+  "Creates a consumer database and returns the connection"
+  [d]
+  ;; create and connect to the database
+  (let [dburi (str "datomic:mem://" d)
+        db (d/create-database dburi)
+        conn (d/connect dburi)]
+    ;; transact schema if database was created
+    (when db
+      (d/transact conn
+                  [{:db/ident :consumer/id
+                    :db/valueType :db.type/string
+                    :db/cardinality :db.cardinality/one
+                    :db/doc "Unique Consumer ID"
+                    :db/index true}
+                   {:db/ident :consumer/name
+                    :db/valueType :db.type/string
+                    :db/cardinality :db.cardinality/one
+                    :db/doc "Display Name for the Consumer"
+                    :db/index true
+                    :db/fulltext true}
+                   {:db/ident :consumer/address
+                    :db/valueType :db.type/string
+                    :db/cardinality  :db.cardinality/one
+                    :db/doc "Consumer Address"
+                    :db/index true
+                    :db/fulltext true}
+                   {:deb/ident :consumer/mobile
+                    :db/valueType :db.type/string
+                    :db/cardinality :db.cardinality/one
+                    :db/doc "Consumer Mobile Number"
+                    :db/index false}
+                   {:db/ident :consumer/email
+                    :db/valueType :db.type/string
+                    :db/cardinality :db.cardinality/one
+                    :db/doc "Consumer Email Address"
+                    :db/index true}
+                   {:db/ident :consumer/geo
+                    :db/valueType :db.type/string
+                    :db/cardinality :db.cardinality/one
+                    :db/doc "Latitude,Longitude CSV"
+                    :db/index false}]))
+    (ConsumerDBDatomic. conn)))
+
+
